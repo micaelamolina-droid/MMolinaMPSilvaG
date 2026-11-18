@@ -1,0 +1,83 @@
+#!/usr/bin/env python3
+"""Programación Avanzada - Laboratorio I
+Recurrencia generalizada G(n) = a*G(n-1) + b*G(n-2), G(0)=0, G(1)=1.
+Con a=b=1 se recupera la sucesión de Fibonacci (caso de validación).
+"""
+import argparse //
+import time
+MOD = 10**20 # para los últimos 20 dígitos sin convertir el entero completo
+# ---------- Algoritmo 1: recursivo (corregido y generalizado) ----------
+def g_recursivo(n, a, b):
+    if n < 2:
+        return n
+    return a * g_recursivo(n - 1, a, b) + b * g_recursivo(n - 2, a, b)
+# ---------- Algoritmo 2: iterativo ----------
+def g_iterativo(n, a, b):
+    if n == 0:
+        return 0
+    prev, cur = 0, 1 # (G(0), G(1))
+    for _ in range(2, n + 1):
+        prev, cur = cur, a * cur + b * prev # asignación simultánea
+    return cur
+# ---------- Algoritmo 3: matricial (cuadrados repetidos) ----------
+def _mat_mul(X, Y):
+    x00, x01, x10, x11 = X
+    y00, y01, y10, y11 = Y
+    return (
+        x00 * y00 + x01 * y10,
+        x00 * y01 + x01 * y11,
+        x10 * y00 + x11 * y10,
+        x10 * y01 + x11 * y11,
+    )
+def g_matricial(n, a, b):
+    if n == 0:
+        return 0
+    R = (1, 0, 0, 1) # I
+    B = (0, 1, b, a) # M = [[0, 1], [b, a]]
+    e = n
+    while e > 0:
+        if e & 1:
+            R = _mat_mul(R, B)
+        e >>= 1
+        if e > 0:
+            B = _mat_mul(B, B)
+    return R[1] # entrada (0,1) de M^n
+ALGOS = {"rec": g_recursivo, "iter": g_iterativo, "mat": g_matricial}
+def main():
+    p = argparse.ArgumentParser(description="G(n) = a*G(n-1) + b*G(n-2)")
+    p.add_argument("--algo", choices=["rec", "iter", "mat"], required=True)
+    p.add_argument("--n", type=int, required=True)
+    p.add_argument("--a", type=int, default=1)
+    p.add_argument("--b", type=int, default=1)
+    args = p.parse_args()
+    if args.n < 0:
+        p.error("n debe ser no negativo")
+    f = ALGOS[args.algo]
+    t0 = time.perf_counter_ns()
+    valor = f(args.n, args.a, args.b)
+    t1 = time.perf_counter_ns()
+    segundos = (t1 - t0) / 1e9
+    # --- Cálculo de dígitos SIN convertir el entero completo a texto ---
+    # bit_length() es O(1) en CPython: da los bits de la representación
+    # interna. El número de dígitos decimales es floor(log10(x)) + 1, y
+    # log10(x) = (bits - 1) * log10(2) ajustado; se afina comparando con
+    # potencias de 10 para evitar el error de redondeo del float.
+    if valor == 0:
+        n_digitos = 1
+    else:
+        import math
+        d = int((valor.bit_length() - 1) * math.log10(2)) + 1
+        # corrección exacta: comparar con 10**d y 10**(d-1)
+        if valor >= 10**d:
+            d += 1
+        elif valor < 10**(d - 1):
+            d -= 1
+        n_digitos = d
+    ultimos = valor % MOD
+    print(f"N = {args.n}")
+    print(f"a = {args.a}, b = {args.b}")
+    print(f"Ultimos 20 digitos de G(N): {ultimos:020d}")
+    print(f"Cantidad de digitos de G(N): {n_digitos}")
+    print(f"Tiempo de ejecucion: {segundos:.9f} s")
+if __name__ == "__main__":
+    main()  
